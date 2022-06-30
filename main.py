@@ -5,53 +5,86 @@ from pathlib import Path
 WORD = re.compile(r"/w+")
 DATE = str(date.today())
 ROOT = os.path.abspath(os.getcwd())
-SCAN_MAX_SIZE = 1000
-SHELL_LIBRARY_PATH = "C:/Users/USER/Desktop/PHPSHELLCHECKER/phpWebshellLibrary"
+SCAN_MAX_SIZE = 5000#MB
+WEBSHELL_LIBRARY_PATH = "C:/Users/USER\Desktop/phpshellcheck/phpWebshellLibrary"
+COMMON_KEYWORDS = [ 'Jumping','shell',
+                    'newfile','newfolder','pass',
+                    'password','passwd','upload',
+                    'eval','hacked',
+                    'linux','windows','base_64',
+                    'hacker','shell_exec',
+                    'base64_decode','chmod',
+                    'eval','php_uname',
+                    'passthru','shell_exec']
 
 diary = Path(DATE+'REPORT.txt')
 diary.touch(exist_ok=True)
 reporter = open(diary, "a")
+WebShellArchive = 'CapturedWebShell'+DATE
+os.mkdir(WebShellArchive,0o666)
 
-def get_cosine(vec1, vec2):
-    intersection = set(vec1.keys()) & set(vec2.keys())
-    numerator = sum([vec1[x] * vec2[x] for x in intersection])
-    sum1 = sum([vec1[x] ** 2 for x in list(vec1.keys())])
-    sum2 = sum([vec2[x] ** 2 for x in list(vec2.keys())])
-    denominator = math.sqrt(sum1) * math.sqrt(sum2)
-    if not denominator: return 0.0
-    else: return float(numerator) / denominator
+# Get the Cosine Similarity
+def theMathemetician(v1, v2):
+    intrsct = set(v1.keys()) & set(v2.keys())
+    numr = sum([v1[x]*v2[x] for x in intrsct])
+    s1 = sum([v1[a]**2 for a in list(v1.keys())])
+    s2 = sum([v2[a]**2 for a in list(v2.keys())])
+    denom = math.sqrt(s1) * math.sqrt(s2)
+    if not denom: return 0.0
+    else: return float("{:.2f}".format(float(numr) / denom))
 
-def text_to_vector(text):
+# Convert Text to Vector
+def theVectorer(text):
     words = WORD.findall(text)
     return Counter(words)
+
+# Archives the sample
+def theArchiver(stringtowrite,fileName,origin,trigger):
+    filename = Path('./CapturedWebShell'+DATE+'/CapturedWebShell'+fileName)
+    filename.touch(exist_ok=True)
+    file = open(filename, "a")
+    file.write("ORIGINAL FILE: "+str(str(origin).encode("utf-8"))+"\nTRIGGER: "+str(str(trigger).encode("utf-8"))+"\ndie('Shell Disabled')\n\n")
+    file.write(str(str(stringtowrite).encode("utf-8")))
+    file.close()
 
 fileCount = 0
 suspicious = 0
 for folder, subfolders, files in os.walk(ROOT):
-    for file in files:
-        if not os.path.getsize(os.path.join(folder, file)) >= SCAN_MAX_SIZE:
+    for fileToCheck in files:
+        if not os.path.getsize(os.path.join(folder, fileToCheck)) >= SCAN_MAX_SIZE:
             fileCount+=1
-            print ('checking: '+os.path.join(folder, file))
-            f1 = open(str(os.path.join(folder, file)), 'rb').read()
-            for folder2, subfolders2, files2 in os.walk(SHELL_LIBRARY_PATH):
+            # print ('checking: '+os.path.join(folder, fileToCheck)[0:35])
+            f1 = open(str(os.path.join(folder, fileToCheck)), 'rb').read()
+            for folder2, subfolders2, files2 in os.walk(WEBSHELL_LIBRARY_PATH):
                 iteration = 0
-                for file2 in files2:
+                for shellComparison in files2:
                     iteration+=1
-                    f2 = open(str(os.path.join(folder2, file2)), 'rb').read()
-                    vector1 = text_to_vector(str(f1))
-                    vector2 = text_to_vector(str(f2))
-                    # print('checking '+file+' with: '+file2+': '+str(get_cosine(vector1, vector2)))
-                    if get_cosine(vector1, vector2) >= 0.3:
-                        print(str(os.path.join(folder, file))+" and "+str(os.path.join(folder2, file2))+" =====> Cosine:"+str(get_cosine(vector1, vector2))+"!!!")
+                    f2 = open(str(os.path.join(folder2, shellComparison)), 'rb').read()
+                    vector1 = theVectorer(str(f1))
+                    vector2 = theVectorer(str(f2))
+                    # print('checking '+fileToCheck+' with: '+shellComparison+': '+str(theMathemetician(vector1, vector2)))
+                    if len(f2) <= 11:
+                        # print('Not worth of intersection calculation')
+                        break
+                    elif theMathemetician(vector1, vector2) >= 0.3:
+                        print(str(os.path.join(folder, fileToCheck))+" and "+str(os.path.join(folder2, shellComparison))+" =====> Cosine:"+str(theMathemetician(vector1, vector2))+"!!!")
                         suspicious+=1
                         try:
-                            reporter.write("\n SUSPECTED as "+ file2 +"\t | , Confidence:"+str(get_cosine(vector1, vector2)*100)+"% -->: "+str(os.path.join(folder, file)))
+                            reporter.write("\n SUSPECTED as "+ shellComparison +"\t | , Confidence:"+str(theMathemetician(vector1, vector2)*100)+"% -->: "+str(os.path.join(folder, fileToCheck)))
+                            theArchiver(f1,''+str(suspicious)+'.txt',str(os.path.join(folder, fileToCheck)),shellComparison)
+                            print('Scan for '+str(fileToCheck)+' done through '+str(iteration)+' comparisons')
                             break
                         except:
-                            reporter.write("Reporting Error at file" + str(fileCount))
+                            reporter.write("Reporting Error at fileToCheck" + str(fileCount))
                             break
-                print('Scan for '+str(file)+' done through '+str(iteration)+' libraries')
+                if suspicious != suspicious+1:
+                    # print('Checking for common keywords...')
+                    res = [element for element in COMMON_KEYWORDS if(element in str(f1))]
+                    if len(res) >= 1:
+                        print('SUSPECTED as COMMON KEYWORD: '+str(res) +'\t | , Confidence:COMM -->: '+str(os.path.join(folder, fileToCheck)))
+                        suspicious+=1
+                        reporter.write("\n SUSPECTED as COMMON KEYWORD: "+str(res)+"\t | , Confidence:???% -->: "+str(os.path.join(folder, fileToCheck).encode("utf-8")))
+                        theArchiver(f1,''+str(suspicious)+'.txt',str(os.path.join(folder, fileToCheck)),str(res))
                 # print('content: '+str(f1))
 reporter.close()
-print('Scanned '+str(fileCount)+' Files!')
-print(str(suspicious)+' Files Detected!')
+print('Scanned '+str(fileCount)+' Files and '+str(suspicious)+' Files Suspected!')
