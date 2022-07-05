@@ -6,22 +6,20 @@ WORD = re.compile(r"/w+")
 DATE = str(date.today())
 ROOT = os.path.abspath(os.getcwd())
 SCAN_MAX_SIZE = 5000#MB
-WEBSHELL_LIBRARY_PATH = "C:/Users/USER\Desktop/phpshellcheck/phpWebshellLibrary"
-COMMON_KEYWORDS = [ 'Jumping','shell',
-                    'newfile','newfolder','pass',
+WEBSHELL_LIBRARY_PATH = "C:/Users/USER/Desktop/phpshellcheck/phpWebshellLibrary/"
+COMMON_KEYWORDS = [ 'shell','newfile','newfolder',
                     'password','passwd','upload',
-                    'eval','hacked',
-                    'linux','windows','base_64',
-                    'hacker','shell_exec',
-                    'base64_decode','chmod',
-                    'eval','php_uname',
-                    'passthru','shell_exec']
+                    'hacked','linux','windows',
+                    'base_64','hacker','shell_exec',
+                    'base64_decode','chmod','php_uname',
+                    'passthru','shell_exec','pass']
 
-diary = Path(DATE+'REPORT.txt')
+WebShellArchive = 'CapturedWebShell'+DATE
+try: os.mkdir(WebShellArchive,0o666)
+except FileExistsError: pass
+diary = Path(WebShellArchive+'/!!'+DATE+'REPORT.txt')
 diary.touch(exist_ok=True)
 reporter = open(diary, "a")
-WebShellArchive = 'CapturedWebShell'+DATE
-os.mkdir(WebShellArchive,0o666)
 
 # Get the Cosine Similarity
 def theMathemetician(v1, v2):
@@ -47,6 +45,16 @@ def theArchiver(stringtowrite,fileName,origin,trigger):
     file.write(str(str(stringtowrite).encode("utf-8")))
     file.close()
 
+print(""" _____ _____ _____ _____ _____ _____ __    __
+|  _  |  |  |  _  |   __|  |  |   __|  |  |  |
+|   __|     |   __|__   |     |   __|  |__|  |__
+|__|  |__|__|__|  |_____|__|__|_____|_____|_____|
+ _____ _____ _____ _____ _____ _____ _____
+|   __|     |  _  |   | |   | |   __| __  |
+|__   |   --|     | | | | | | |   __|    -|
+|_____|_____|__|__|_|___|_|___|_____|__|__|
+""")
+
 fileCount = 0
 suspicious = 0
 for folder, subfolders, files in os.walk(ROOT):
@@ -67,12 +75,13 @@ for folder, subfolders, files in os.walk(ROOT):
                         # print('Not worth of intersection calculation')
                         break
                     elif theMathemetician(vector1, vector2) >= 0.3:
-                        print(str(os.path.join(folder, fileToCheck))+" and "+str(os.path.join(folder2, shellComparison))+" =====> Cosine:"+str(theMathemetician(vector1, vector2))+"!!!")
+                        # print(str(os.path.join(folder, fileToCheck))+" and "+str(os.path.join(folder2, shellComparison))+" =====> Cosine:"+str(theMathemetician(vector1, vector2))+"!!!")
+                        print('cossimm:'+str(os.path.join(folder, fileToCheck))+": "+str(theMathemetician(vector1, vector2)*100)+"%")
                         suspicious+=1
                         try:
                             reporter.write("\n SUSPECTED as "+ shellComparison +"\t | , Confidence:"+str(theMathemetician(vector1, vector2)*100)+"% -->: "+str(os.path.join(folder, fileToCheck)))
                             theArchiver(f1,''+str(suspicious)+'.txt',str(os.path.join(folder, fileToCheck)),shellComparison)
-                            print('Scan for '+str(fileToCheck)+' done through '+str(iteration)+' comparisons')
+                            # print('Scan for '+str(fileToCheck)+' done through '+str(iteration)+' comparisons')
                             break
                         except:
                             reporter.write("Reporting Error at fileToCheck" + str(fileCount))
@@ -81,7 +90,8 @@ for folder, subfolders, files in os.walk(ROOT):
                     # print('Checking for common keywords...')
                     res = [element for element in COMMON_KEYWORDS if(element in str(f1))]
                     if len(res) >= 1:
-                        print('SUSPECTED as COMMON KEYWORD: '+str(res) +'\t | , Confidence:COMM -->: '+str(os.path.join(folder, fileToCheck)))
+                        # print('SUSPECTED as COMMON KEYWORD: '+str(res) +'\t | , Confidence:COMM -->: '+str(os.path.join(folder, fileToCheck)))
+                        print('word(s):'+str(res) +' at '+str(os.path.join(folder, fileToCheck)))
                         suspicious+=1
                         reporter.write("\n SUSPECTED as COMMON KEYWORD: "+str(res)+"\t | , Confidence:???% -->: "+str(os.path.join(folder, fileToCheck).encode("utf-8")))
                         theArchiver(f1,''+str(suspicious)+'.txt',str(os.path.join(folder, fileToCheck)),str(res))
